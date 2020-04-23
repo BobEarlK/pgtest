@@ -59,7 +59,7 @@ def designate_patients(request):
         return render(request, 'distribute_patients/designate_patients.html', context=context)
 
 
-def patient_assignments(request, distribution=Distribution.objects.last()):
+def patient_assignments(request):
     distribution = Distribution.objects.last()
     patient_assignment_dict = {}
     for line_item in distribution.get_ordered_line_items():
