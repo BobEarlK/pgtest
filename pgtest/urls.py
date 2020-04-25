@@ -18,14 +18,13 @@ from django.urls import path, include
 
 from .settings import DEBUG
 
-from distribute_patients.views import set_rounders, covid_links
+from distribute_patients.views import covid_links
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('distribute/', include ('distribute_patients.urls')),
     path('covid_links/', covid_links, name='covid_links'),
-    path('', set_rounders, name='set_rounders'),
+    path('', include ('distribute_patients.urls')),
 ]
 if DEBUG:
     import debug_toolbar

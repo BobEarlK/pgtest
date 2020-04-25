@@ -10,34 +10,34 @@ from ..models import Distribution, Patient, Provider, PatientAssignmentLineItem
 
 class SetRoundersTests(TestCase):
     def test_view_resolves_url(self):
-        url = '/'
+        url = '/set_rounders/'
         view = resolve(url)
-        self.assertEqual(view.view_name, 'set_rounders')
+        self.assertEqual(view.view_name, 'distribute:set_rounders')
 
     def test_view_gets_success_status_code(self):
-        url = reverse('set_rounders')
+        url = reverse('distribute:set_rounders')
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
 
     def test_view_uses_correct_template(self):
-        url = reverse('set_rounders')
+        url = reverse('distribute:set_rounders')
         response = self.client.get(url)
         self.assertTemplateUsed(response, 'distribute_patients/set_rounders.html')
 
     def test_view_context_contains_rounder_formset(self):
-        url = reverse('set_rounders')
+        url = reverse('distribute:set_rounders')
         response = self.client.get(url)
         self.assertEqual(len(response.context['rounder_formset']), 12)
 
     def test_posting_data_to_view_creates_line_items_assigned_to_a_new_distribution(self):
-        url = reverse('set_rounders')
-        data = {'form-TOTAL_FORMS': 12,'form-INITIAL_FORMS': 12}
+        url = reverse('distribute:set_rounders')
+        data = {'form-TOTAL_FORMS': 12, 'form-INITIAL_FORMS': 12}
         provider_names = ['provA', 'provB', 'provC', 'provD', 'provE', 'provF', 'provG', 'provH']
-        starting_totals = [11,12,14,15,9,8,16,13]
-        starting_CCUs = [2,5,3,7,0,1,1,0]
-        starting_COVIDs = [1,2,5,0,3,6,4,3]
+        starting_totals = [11, 12, 14, 15, 9, 8, 16, 13]
+        starting_CCUs = [2, 5, 3, 7, 0, 1, 1, 0]
+        starting_COVIDs = [1, 2, 5, 0, 3, 6, 4, 3]
         for i in range(12):
-            data.update({f'form-{i}-id':i+1})
+            data.update({f'form-{i}-id': i + 1})
             try:
                 provider_name = provider_names[i]
             except IndexError:
@@ -66,16 +66,15 @@ class SetRoundersTests(TestCase):
         for line_item in PatientAssignmentLineItem.objects.all():
             self.assertEqual(line_item.distribution, Distribution.objects.first())
 
-
     def test_posting_data_to_view_redirects_to_edit_count_view(self):
-        url = reverse('set_rounders')
-        data = {'form-TOTAL_FORMS': 12,'form-INITIAL_FORMS': 12}
+        url = reverse('distribute:set_rounders')
+        data = {'form-TOTAL_FORMS': 12, 'form-INITIAL_FORMS': 12}
         provider_names = ['provA', 'provB', 'provC', 'provD', 'provE', 'provF', 'provG', 'provH']
-        starting_totals = [11,12,14,15,9,8,16,13]
-        starting_CCUs = [2,5,3,7,0,1,1,0]
-        starting_COVIDs = [1,2,5,0,3,6,4,3]
+        starting_totals = [11, 12, 14, 15, 9, 8, 16, 13]
+        starting_CCUs = [2, 5, 3, 7, 0, 1, 1, 0]
+        starting_COVIDs = [1, 2, 5, 0, 3, 6, 4, 3]
         for i in range(12):
-            data.update({f'form-{i}-id':i+1})
+            data.update({f'form-{i}-id': i + 1})
             try:
                 provider_name = provider_names[i]
             except IndexError:
@@ -99,6 +98,108 @@ class SetRoundersTests(TestCase):
         response = self.client.post(url, data=data)
         self.assertRedirects(response, reverse('distribute:edit_count'))
 
+
+class CurrentRoundersTests(TestCase):
+    def test_view_resolves_url(self):
+        url = '/'
+        view = resolve(url)
+        self.assertEqual(view.view_name, 'distribute:current_rounders')
+
+    def test_view_redirects_to_set_rounders_if_no_distribution(self):
+        url = reverse('distribute:current_rounders')
+        response = self.client.get(url)
+        self.assertRedirects(response, reverse('distribute:set_rounders'))
+
+    def test_view_gets_success_status_code(self):
+        # all tests of current_rounders view have to have a distribution
+        helper_fxn_create_distribution_with_4_sample_line_items()
+        url = reverse('distribute:current_rounders')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+    def test_view_uses_correct_template(self):
+        helper_fxn_create_distribution_with_4_sample_line_items()
+        url = reverse('distribute:current_rounders')
+        response = self.client.get(url)
+        self.assertTemplateUsed(response, 'distribute_patients/current_rounders.html')
+
+    def test_view_context_contains_rounder_formset(self):
+        helper_fxn_create_distribution_with_4_sample_line_items()
+        url = reverse('distribute:current_rounders')
+        response = self.client.get(url)
+        self.assertEqual(len(response.context['current_rounder_formset']), 12)
+
+    def test_posting_data_to_view_creates_line_items_assigned_to_a_new_distribution(self):
+        helper_fxn_create_distribution_with_4_sample_line_items()
+        url = reverse('distribute:current_rounders')
+        data = {'form-TOTAL_FORMS': 12, 'form-INITIAL_FORMS': 12}
+        starting_totals = [14, 16, 12, 10, 8, 6, 10, 12]
+        starting_CCUs = [1, 3, 2, 0, 0, 3, 1, 0]
+        starting_COVIDs = [2, 2, 5, 0, 1, 3, 2, 0]
+        for i in range(12):
+            data.update({f'form-{i}-id': i + 1})
+            try:
+                starting_total = starting_totals[i]
+            except IndexError:
+                starting_total = ''
+            try:
+                starting_CCU = starting_CCUs[i]
+            except IndexError:
+                starting_CCU = ''
+            try:
+                starting_COVID = starting_COVIDs[i]
+            except IndexError:
+                starting_COVID = ''
+            data.update({f'form-{i}-starting_total': starting_total})
+            data.update({f'form-{i}-starting_CCU': starting_CCU})
+            data.update({f'form-{i}-starting_COVID': starting_COVID})
+        self.assertEqual(Distribution.objects.count(), 1)
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 8)
+        self.client.post(url, data=data)
+        self.assertEqual(Distribution.objects.count(), 2)
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 16)
+        distribution = Distribution.objects.last()
+        for index, line_item in enumerate(distribution.line_items.all()):
+            self.assertEqual(line_item.starting_census.total, starting_totals[index])
+            self.assertEqual(line_item.starting_census.CCU, starting_CCU[index])
+            self.assertEqual(line_item.starting_census.COVID, starting_COVID[index])
+
+    def test_posting_data_to_view_redirects_to_edit_count_view(self):
+        helper_fxn_create_distribution_with_4_sample_line_items()
+        url = reverse('distribute:current_rounders')
+        data = {'form-TOTAL_FORMS': 12, 'form-INITIAL_FORMS': 12}
+        starting_totals = [14, 16, 12, 10, 8, 6, 10, 12]
+        starting_CCUs = [1, 3, 2, 0, 0, 3, 1, 0]
+        starting_COVIDs = [2, 2, 5, 0, 1, 3, 2, 0]
+        for i in range(12):
+            data.update({f'form-{i}-id': i + 1})
+            try:
+                starting_total = starting_totals[i]
+            except IndexError:
+                starting_total = ''
+            try:
+                starting_CCU = starting_CCUs[i]
+            except IndexError:
+                starting_CCU = ''
+            try:
+                starting_COVID = starting_COVIDs[i]
+            except IndexError:
+                starting_COVID = ''
+            data.update({f'form-{i}-starting_total': starting_total})
+            data.update({f'form-{i}-starting_CCU': starting_CCU})
+            data.update({f'form-{i}-starting_COVID': starting_COVID})
+        self.assertEqual(Distribution.objects.count(), 1)
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 8)
+        response = self.client.post(url, data=data)
+        self.assertRedirects(response, reverse('distribute:edit_count'))
+
+    def test_view_content_contains_link_to_modify_providers_page(self):
+        helper_fxn_create_distribution_with_4_sample_line_items()
+        self.fail('Finish the test')
+
+    def test_view_content_contains_link_to_set_rounders_page(self):
+        helper_fxn_create_distribution_with_4_sample_line_items()
+        self.fail('Finish the test')
 
 
 class EditCountToDistributeTests(TestCase):
@@ -144,22 +245,6 @@ class EditCountToDistributeTests(TestCase):
         response = self.client.post(url, data={'count_to_distribute': 13})
         self.assertEqual(Distribution.objects.count(), 1)
         self.assertEqual(Distribution.objects.last().line_items.count(), 0)
-
-    # def test_posting_count_to_edit_count_view_duplicates_prior_distribution_line_items_if_prior_exists(self):
-    #     helper_fxn_create_distribution_with_4_sample_line_items()
-    #     url = reverse('distribute:edit_count')
-    #     response = self.client.post(url, data={'count_to_distribute': 13})
-    #     self.assertEqual(Distribution.objects.count(), 2)
-    #     self.assertEqual(Distribution.objects.last().line_items.count(), 4)
-    #     self.assertEqual(
-    #         [line_item.starting_census.total for line_item in Distribution.objects.last().line_items.all()],
-    #         [11, 13, 10, 11])
-    #     self.assertEqual(
-    #         [line_item.starting_census.CCU for line_item in Distribution.objects.last().line_items.all()],
-    #         [3, 2, 2, 1])
-    #     self.assertEqual(
-    #         [line_item.starting_census.COVID for line_item in Distribution.objects.last().line_items.all()],
-    #         [3, 1, 0, 2])
 
 
 class DesignatePatientsViewTests(TestCase):
@@ -350,6 +435,7 @@ class PatientAssignmentsViewTests(TestCase):
         url = reverse('distribute:patient_assignments')
         response = self.client.get(url)
         self.assertEqual(len(response.context['patient_assignment_dict']), 4)
+
 
 class COVIDLinksView(TestCase):
     def test_view_resolves_url(self):

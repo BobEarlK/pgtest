@@ -8,19 +8,16 @@ from .models import Distribution, Patient, Provider, PatientAssignmentLineItem, 
     AssignedCensus
 
 
-class RounderForm(forms.Form):
+class BaseRounderForm(forms.Form):
     id = forms.IntegerField(required=False)
-    abbreviation = forms.CharField(max_length=6, required=False)
     starting_total = forms.IntegerField(max_value=40, min_value=0, required=False)
     starting_CCU = forms.IntegerField(max_value=40, min_value=0, required=False)
     starting_COVID = forms.IntegerField(max_value=40, min_value=0, required=False)
 
-    def save(self, *args, **kwargs):
-        if self.cleaned_data['abbreviation'] and \
-                type(self.cleaned_data['starting_total']) == int and \
+    def save(self, provider, *args, **kwargs):
+        if type(self.cleaned_data['starting_total']) == int and \
                 type(self.cleaned_data['starting_CCU']) == int and \
                 type(self.cleaned_data['starting_COVID']) == int:
-            provider = Provider.objects.get_or_create(abbreviation=self.cleaned_data['abbreviation'])[0]
             starting_census = StartingCensus.objects.create(total=self.cleaned_data['starting_total'],
                                                             CCU=self.cleaned_data[
                                                                 'starting_CCU'],
@@ -28,6 +25,25 @@ class RounderForm(forms.Form):
             return PatientAssignmentLineItem(provider=provider, starting_census=starting_census)
         else:
             return None
+
+
+class SetRounderForm(BaseRounderForm):
+    abbreviation = forms.CharField(max_length=6, required=False)
+
+    def save(self, *args, **kwargs):
+        if self.cleaned_data['abbreviation']:
+            provider = Provider.objects.get_or_create(abbreviation=self.cleaned_data['abbreviation'])[0]
+            return super().save(provider=provider, *args, **kwargs)
+        else:
+            return None
+
+class CurrentRounderForm(BaseRounderForm):
+    def __init__(self, provider, *args, **kwargs):
+        self.provider = provider
+        super().__init__(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        super().save(provider=self.provider, *args, **kwargs)
 
 
 class BaseRounderFormSet(forms.BaseFormSet):

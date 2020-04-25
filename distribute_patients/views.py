@@ -5,12 +5,22 @@ from django.utils import timezone
 
 from .helper_fxns import date_str_to_date
 
-from .forms import PatientCountForm, BasePatientDesignateFormSet, RounderForm, BaseRounderFormSet
+from .forms import PatientCountForm, BasePatientDesignateFormSet, SetRounderForm, CurrentRounderForm, BaseRounderFormSet
 from .models import Distribution, Patient, Provider
 
 
+def current_rounders(request):
+    distribution = Distribution.objects.last()
+    if not distribution:
+        return redirect(reverse('distribute:set_rounders'))
+    CurrentRounderFormSet = forms.formset_factory(form=CurrentRounderForm, formset=BaseRounderFormSet)
+    current_rounder_formset=CurrentRounderFormSet()
+    context = {}
+    return render(request, 'distribute_patients/current_rounders.html', context=context)
+
+
 def set_rounders(request):
-    RounderFormSet = forms.formset_factory(form=RounderForm, formset=BaseRounderFormSet)
+    RounderFormSet = forms.formset_factory(form=SetRounderForm, formset=BaseRounderFormSet)
     if request.method == 'POST':
         formset = RounderFormSet(data=request.POST)
         if formset.is_valid():
@@ -84,9 +94,9 @@ def covid_links(request):
         "Evergreen 'Lessons Learned'": 'http://www.evergreenhealth.com/covid-19-lessons',
         'Evergreen COVID-19 public resources': 'https://www.evergreenhealth.com/coronavirus',
         'Evergreen Health COVID-19 Daily Patient Update': 'https://evergreenhealth.us14.list-manage.com/track/click?u=5da20b2b88e84f496fd6c97d0&id=dff97c6cd6&e=4771d6f5ea',
-        'Healthdata COVID-19 Projections':'https://evergreenhealth.us14.list-manage.com/track/click?u=5da20b2b88e84f496fd6c97d0&id=48770d03a4&e=4771d6f5ea',
-        'CDC Guidance for COVID-19 patient discharges':'https://www.cdc.gov/coronavirus/2019-ncov/hcp/disposition-hospitalized-patients.html',
-        'Surviving Sepsis COVID-19 Guidelines':'https://www.sccm.org/getattachment/Disaster/SSC-COVID19-Critical-Care-Guidelines.pdf',
+        'Healthdata COVID-19 Projections': 'https://evergreenhealth.us14.list-manage.com/track/click?u=5da20b2b88e84f496fd6c97d0&id=48770d03a4&e=4771d6f5ea',
+        'CDC Guidance for COVID-19 patient discharges': 'https://www.cdc.gov/coronavirus/2019-ncov/hcp/disposition-hospitalized-patients.html',
+        'Surviving Sepsis COVID-19 Guidelines': 'https://www.sccm.org/getattachment/Disaster/SSC-COVID19-Critical-Care-Guidelines.pdf',
         'Fighting COVID technology center': 'https://www.alibabacloud.com/covid-19-global-medixchange',
         'PPE Donning/Doffing Video': 'https://youtu.be/twE8UtwndeQ',
         'BlueJeans App Workflow': 'http://employees.evergreenhealth.com/IT/Projects/covid19/Project%20Documents/Design-Build-Test/COVID-19%20Virtual%20Visits/Communication/Patient%20to%20Family%20Virtual%20Visit/CCU%20%20Patient%20to%20Family%20Workflow.pdf?Web=1',

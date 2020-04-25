@@ -2,20 +2,21 @@ from django import forms
 from django.test import TestCase
 from django.utils import timezone
 
-from ..forms import PatientCountForm, PatientDesignateForm, BasePatientDesignateFormSet, RounderForm, BaseRounderFormSet
+from ..forms import PatientCountForm, PatientDesignateForm, BasePatientDesignateFormSet, SetRounderForm, \
+    CurrentRounderForm, BaseRounderFormSet
 from ..helper_fxns import helper_fxn_create_distribution_with_4_sample_line_items
 from ..models import Distribution, Patient, Provider, PatientAssignmentLineItem
 
 
-class RounderFormTests(TestCase):
+class SetRounderFormTests(TestCase):
     def test_can_create_form(self):
-        form = RounderForm()
-        self.assertIsInstance(form, RounderForm)
+        form = SetRounderForm()
+        self.assertIsInstance(form, SetRounderForm)
 
     def test_saving_form_creates_provider(self):
         self.assertEqual(Provider.objects.count(), 0)
         data = {'abbreviation': 'JLoh', 'starting_total': 8, 'starting_CCU': 3, 'starting_COVID': 2}
-        form = RounderForm(data=data)
+        form = SetRounderForm(data=data)
         form.full_clean()
         self.assertTrue(form.is_valid())
         form.save()
@@ -25,46 +26,50 @@ class RounderFormTests(TestCase):
     def test_saving_form_with_blank_provider_field_is_valid_but_does_not_create_line_item(self):
         self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
         data = {'abbreviation': '', 'starting_total': 8, 'starting_CCU': 3, 'starting_COVID': 2}
-        form = RounderForm(data=data)
+        form = SetRounderForm(data=data)
         form.full_clean()
         self.assertTrue(form.is_valid())
         self.assertEqual(Provider.objects.count(), 0)
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
 
     def test_saving_form_with_blank_starting_total_is_valid_but_does_not_create_line_item(self):
         self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
         data = {'abbreviation': 'provA', 'starting_total': '', 'starting_CCU': 3, 'starting_COVID': 2}
-        form = RounderForm(data=data)
+        form = SetRounderForm(data=data)
         form.full_clean()
         self.assertTrue(form.is_valid())
         self.assertEqual(Provider.objects.count(), 0)
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
 
     def test_saving_form_with_blank_starting_CCU_is_valid_but_does_not_create_line_item(self):
         self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
-        data = {'abbreviation': 'provA', 'starting_total': 8, 'starting_CCU': 3, 'starting_COVID': 2}
-        form = RounderForm(data=data)
+        data = {'abbreviation': 'provA', 'starting_total': 8, 'starting_CCU': '', 'starting_COVID': 2}
+        form = SetRounderForm(data=data)
         form.full_clean()
         self.assertTrue(form.is_valid())
         self.assertEqual(Provider.objects.count(), 0)
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
 
     def test_saving_form_with_blank_starting_COVID_is_valid_but_does_not_create_line_item(self):
         self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
         data = {'abbreviation': 'provA', 'starting_total': 8, 'starting_CCU': 3, 'starting_COVID': ''}
-        form = RounderForm(data=data)
+        form = SetRounderForm(data=data)
         form.full_clean()
         self.assertTrue(form.is_valid())
         self.assertEqual(Provider.objects.count(), 0)
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
 
-    def test_saving_form_with_an_existing_abbreviation_in_db_does_not_create_a_new_provider(self):
+    def test_saving_form_with_an_existing_abbreviation_in_db_does_not_create_a_new_provider_or_line_item(self):
         self.assertEqual(Provider.objects.count(), 0)
         data = {'abbreviation': 'JLoh', 'starting_total': 8, 'starting_CCU': 3, 'starting_COVID': 2}
-        form = RounderForm(data=data)
+        form = SetRounderForm(data=data)
         form.full_clean()
         self.assertTrue(form.is_valid())
         form.save()
         self.assertEqual(Provider.objects.count(), 1)
         self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
         data = {'abbreviation': 'JLoh', 'starting_total': 8, 'starting_CCU': 3, 'starting_COVID': 2}
-        form = RounderForm(data=data)
+        form = SetRounderForm(data=data)
         form.full_clean()
         self.assertTrue(form.is_valid())
         form.save()
@@ -72,14 +77,67 @@ class RounderFormTests(TestCase):
         self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
 
 
-class RounderFormSetTests(TestCase):
+class CurrentRounderFormTests(TestCase):
+    def test_can_create_form_given_provider(self):
+        form = CurrentRounderForm(provider=Provider.objects.create(abbreviation='provA'))
+        self.assertIsInstance(form, CurrentRounderForm)
+
+    def test_saving_form_given_provider_does_not_create_new_provider(self):
+        self.assertEqual(Provider.objects.count(), 0)
+        data = {'starting_total': 8, 'starting_CCU': 3, 'starting_COVID': 2}
+        form = CurrentRounderForm(provider=Provider.objects.create(abbreviation='provA'), data=data)
+        self.assertEqual(Provider.objects.count(), 1)
+        form.full_clean()
+        self.assertTrue(form.is_valid())
+        form.save()
+        self.assertEqual(Provider.objects.count(), 1)
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
+
+    def test_saving_form_given_provider_and_valid_numbers_is_valid_but_does_not_create_new_line_item(self):
+        self.assertEqual(Provider.objects.count(), 0)
+        data = {'starting_total': 8, 'starting_CCU': 3, 'starting_COVID': 2}
+        form = CurrentRounderForm(provider=Provider.objects.create(abbreviation='provA'), data=data)
+        form.full_clean()
+        self.assertTrue(form.is_valid())
+        form.save()
+        self.assertTrue(form.is_valid())
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
+
+
+    def test_saving_form_with_blank_starting_total_is_valid_but_does_not_create_line_item(self):
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
+        data = {'starting_total': '', 'starting_CCU': 3, 'starting_COVID': 2}
+        form = CurrentRounderForm(provider=Provider.objects.create(abbreviation='provA'), data=data)
+        form.full_clean()
+        self.assertTrue(form.is_valid())
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
+
+    def test_saving_form_with_blank_starting_CCU_is_valid_but_does_not_create_line_item(self):
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
+        data = {'starting_total': 8, 'starting_CCU': '', 'starting_COVID': 2}
+        form = CurrentRounderForm(provider=Provider.objects.create(abbreviation='provA'), data=data)
+        form.full_clean()
+        self.assertTrue(form.is_valid())
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
+
+    def test_saving_form_with_blank_starting_COVID_is_valid_but_does_not_create_line_item(self):
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
+        data = {'starting_total': 8, 'starting_CCU': 3, 'starting_COVID': ''}
+        form = CurrentRounderForm(provider=Provider.objects.create(abbreviation='provA'), data=data)
+        form.full_clean()
+        self.assertTrue(form.is_valid())
+        self.assertEqual(PatientAssignmentLineItem.objects.count(), 0)
+
+
+
+class RounderFormSetWithSetRounderFormTests(TestCase):
     def test_can_create_formset(self):
-        RounderFormSet = forms.formset_factory(form=RounderForm, formset=BaseRounderFormSet)
+        RounderFormSet = forms.formset_factory(form=SetRounderForm, formset=BaseRounderFormSet)
         formset = RounderFormSet()
         self.assertIsInstance(formset, RounderFormSet)
 
     def test_newly_created_formset_forms_include_form_id_as_hidden_field(self):
-        RounderFormSet = forms.formset_factory(form=RounderForm, formset=BaseRounderFormSet)
+        RounderFormSet = forms.formset_factory(form=SetRounderForm, formset=BaseRounderFormSet)
         formset = RounderFormSet()
         self.assertEqual(len(formset.forms), 12)
         for index, form in enumerate(formset.forms):
@@ -113,7 +171,7 @@ class RounderFormSetTests(TestCase):
             data.update({f'form-{i}-starting_total': starting_total})
             data.update({f'form-{i}-starting_CCU': starting_CCU})
             data.update({f'form-{i}-starting_COVID': starting_COVID})
-        RounderFormSet = forms.formset_factory(form=RounderForm, formset=BaseRounderFormSet)
+        RounderFormSet = forms.formset_factory(form=SetRounderForm, formset=BaseRounderFormSet)
         formset = RounderFormSet(data=data)
         formset.full_clean()
         self.assertTrue(formset.is_valid())
@@ -150,7 +208,7 @@ class RounderFormSetTests(TestCase):
             data.update({f'form-{i}-starting_total': starting_total})
             data.update({f'form-{i}-starting_CCU': starting_CCU})
             data.update({f'form-{i}-starting_COVID': starting_COVID})
-        RounderFormSet = forms.formset_factory(form=RounderForm, formset=BaseRounderFormSet)
+        RounderFormSet = forms.formset_factory(form=SetRounderForm, formset=BaseRounderFormSet)
         formset = RounderFormSet(data=data)
         formset.full_clean()
         self.assertTrue(formset.is_valid())
@@ -188,7 +246,7 @@ class RounderFormSetTests(TestCase):
             data.update({f'form-{i}-starting_total': starting_total})
             data.update({f'form-{i}-starting_CCU': starting_CCU})
             data.update({f'form-{i}-starting_COVID': starting_COVID})
-        RounderFormSet = forms.formset_factory(form=RounderForm, formset=BaseRounderFormSet)
+        RounderFormSet = forms.formset_factory(form=SetRounderForm, formset=BaseRounderFormSet)
         formset = RounderFormSet(data=data)
         formset.full_clean()
         self.assertTrue(formset.is_valid())
